@@ -34,6 +34,8 @@ from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.scene_box import OrientedBox
+from nerfstudio.models.nerfacto import NerfactoModel
+from nerfstudio.models.splatfacto import SplatfactoModel
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.rich_utils import CONSOLE, ItersPerSecColumn
 
@@ -91,6 +93,7 @@ def generate_point_cloud(
     normal_output_name: Optional[str] = None,
     crop_obb: Optional[OrientedBox] = None,
     std_ratio: float = 10.0,
+    downscale_factor: int = 1,
 ) -> o3d.geometry.PointCloud:
     """Generate a point cloud from a nerf.
 
@@ -108,6 +111,9 @@ def generate_point_cloud(
     Returns:
         Point cloud.
     """
+    cameras = pipeline.datamanager.train_dataset.cameras
+    if downscale_factor > 1:
+        cameras.rescale_output_resolution(1 / downscale_factor)
 
     progress = Progress(
         TextColumn(":cloud: Computing Point Cloud :cloud:"),
@@ -126,9 +132,17 @@ def generate_point_cloud(
             normal = None
 
             with torch.no_grad():
-                ray_bundle, _ = pipeline.datamanager.next_train(0)
-                assert isinstance(ray_bundle, RayBundle)
-                outputs = pipeline.model(ray_bundle)
+                if isinstance(pipeline.model, NerfactoModel):
+                    ray_bundle, _ = pipeline.datamanager.next_train(0)
+                    assert isinstance(ray_bundle, RayBundle)
+                    outputs = pipeline.model(ray_bundle)
+                elif isinstance(pipeline.model, SplatfactoModel):
+                    cameras, batch = pipeline.datamanager.next_train(0)
+                    ray_bundle = cameras.generate_rays(0)
+                    outputs = pipeline._model(cameras)
+                else:
+                    raise NotImplementedError("Only Nerfacto and Splatfacto models are supported")
+
             if rgb_output_name not in outputs:
                 CONSOLE.rule("Error", style="red")
                 CONSOLE.print(f"Could not find {rgb_output_name} in the model outputs", justify="center")
@@ -248,8 +262,8 @@ def render_trajectory(
     """
     images = []
     depths = []
+    accums = []
     cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
-
     progress = Progress(
         TextColumn(":cloud: Computing rgb and depth images :cloud:"),
         BarColumn(),
@@ -259,11 +273,18 @@ def render_trajectory(
     )
     with progress:
         for camera_idx in progress.track(range(cameras.size), description=""):
-            camera_ray_bundle = cameras.generate_rays(
-                camera_indices=camera_idx, disable_distortion=disable_distortion
-            ).to(pipeline.device)
-            with torch.no_grad():
-                outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+            if isinstance(pipeline.model, NerfactoModel):
+                camera_ray_bundle = cameras.generate_rays(
+                    camera_indices=camera_idx, disable_distortion=disable_distortion
+                ).to(pipeline.device)
+                with torch.no_grad():
+                    outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+            elif isinstance(pipeline.model, SplatfactoModel):
+                camera = cameras[camera_idx : camera_idx + 1]
+                with torch.no_grad():
+                    outputs = pipeline.model.get_outputs_for_camera(camera)
+            else:
+                raise NotImplementedError("Only Nerfacto and Splatfacto models are supported")
             if rgb_output_name not in outputs:
                 CONSOLE.rule("Error", style="red")
                 CONSOLE.print(f"Could not find {rgb_output_name} in the model outputs", justify="center")
@@ -278,9 +299,15 @@ def render_trajectory(
                 image = pipeline.model.get_rgba_image(outputs, rgb_output_name)
             else:
                 image = outputs[rgb_output_name]
-            images.append(image.cpu().numpy())
-            depths.append(outputs[depth_output_name].cpu().numpy())
-    return images, depths
+            image = image.cpu().numpy()
+            depth = outputs[depth_output_name].cpu().numpy()
+            accum = outputs["accumulation"].cpu().numpy()
+
+            images.append(image)
+            depths.append(depth)
+            accums.append(accum)
+
+    return images, depths, accums
 
 
 def collect_camera_poses_for_dataset(

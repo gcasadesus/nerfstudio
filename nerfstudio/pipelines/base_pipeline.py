@@ -175,7 +175,10 @@ class Pipeline(nn.Module):
     @abstractmethod
     @profiler.time_function
     def get_average_eval_image_metrics(
-        self, step: Optional[int] = None, output_path: Optional[Path] = None, get_std: bool = False
+        self,
+        step: Optional[int] = None,
+        output_path: Optional[Path] = None,
+        get_std: bool = False,
     ):
         """Iterate over all the images in the eval dataset and get the average.
 
@@ -252,7 +255,10 @@ class VanillaPipeline(Pipeline):
         self.config = config
         self.test_mode = test_mode
         self.datamanager: DataManager = config.datamanager.setup(
-            device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
+            device=device,
+            test_mode=test_mode,
+            world_size=world_size,
+            local_rank=local_rank,
         )
         # TODO make cleaner
         seed_pts = None
@@ -279,7 +285,10 @@ class VanillaPipeline(Pipeline):
 
         self.world_size = world_size
         if world_size > 1:
-            self._model = typing.cast(Model, DDP(self._model, device_ids=[local_rank], find_unused_parameters=True))
+            self._model = typing.cast(
+                Model,
+                DDP(self._model, device_ids=[local_rank], find_unused_parameters=True),
+            )
             dist.barrier(device_ids=[local_rank])
 
     @property
@@ -389,7 +398,8 @@ class VanillaPipeline(Pipeline):
                     for key in image_dict.keys():
                         image = image_dict[key]  # [H, W, C] order
                         vutils.save_image(
-                            image.permute(2, 0, 1).cpu(), output_path / f"{image_prefix}_{key}_{idx:04d}.png"
+                            image.permute(2, 0, 1).cpu(),
+                            output_path / f"{image_prefix}_{key}_{idx:04d}.png",
                         )
 
                 assert "num_rays_per_sec" not in metrics_dict
@@ -419,7 +429,10 @@ class VanillaPipeline(Pipeline):
 
     @profiler.time_function
     def get_average_eval_image_metrics(
-        self, step: Optional[int] = None, output_path: Optional[Path] = None, get_std: bool = False
+        self,
+        step: Optional[int] = None,
+        output_path: Optional[Path] = None,
+        get_std: bool = False,
     ):
         """Get the average metrics for evaluation images."""
         assert hasattr(
@@ -427,7 +440,11 @@ class VanillaPipeline(Pipeline):
         ), "datamanager must have 'fixed_indices_eval_dataloader' attribute"
         image_prefix = "eval"
         return self.get_average_image_metrics(
-            self.datamanager.fixed_indices_eval_dataloader, image_prefix, step, output_path, get_std
+            self.datamanager.fixed_indices_eval_dataloader,
+            image_prefix,
+            step,
+            output_path,
+            get_std,
         )
 
     def load_pipeline(self, loaded_state: Dict[str, Any], step: int) -> None:

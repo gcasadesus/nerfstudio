@@ -33,7 +33,7 @@ from pytorch_msssim import SSIM
 from torch.nn import Parameter
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizer, CameraOptimizerConfig
-from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.scene_box import OrientedBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes, TrainingCallbackLocation
 from nerfstudio.engine.optimizers import Optimizers
@@ -235,9 +235,8 @@ class SplatfactoModel(Model):
 
         self.crop_box: Optional[OrientedBox] = None
         if self.config.background_color == "random":
-            self.background_color = torch.tensor(
-                [0.1490, 0.1647, 0.2157]
-            )  # This color is the same as the default background color in Viser. This would only affect the background color when rendering.
+            self.background_color = torch.tensor([0.1490, 0.1647, 0.2157])
+            # This color is the same as the default background color in Viser. This would only affect the background color when rendering.
         else:
             self.background_color = get_color(self.config.background_color)
         if self.config.use_bilateral_grid:
@@ -264,7 +263,7 @@ class SplatfactoModel(Model):
             pause_refine_after_reset=self.num_train_data + self.config.refine_every,
             absgrad=self.config.use_absgrad,
             revised_opacity=False,
-            verbose=True,
+            verbose=False,
         )
         self.strategy_state = self.strategy.initialize_state(scene_scale=1.0)
 
@@ -320,7 +319,14 @@ class SplatfactoModel(Model):
         if "means" in dict:
             # For backwards compatibility, we remap the names of parameters from
             # means->gauss_params.means since old checkpoints have that format
-            for p in ["means", "scales", "quats", "features_dc", "features_rest", "opacities"]:
+            for p in [
+                "means",
+                "scales",
+                "quats",
+                "features_dc",
+                "features_rest",
+                "opacities",
+            ]:
                 dict[f"gauss_params.{p}"] = dict[p]
         newp = dict["gauss_params.means"].shape[0]
         for name, param in self.gauss_params.items():
@@ -375,7 +381,14 @@ class SplatfactoModel(Model):
         # specify more if they want to add more optimizable params to gaussians.
         return {
             name: [self.gauss_params[name]]
-            for name in ["means", "scales", "quats", "features_dc", "features_rest", "opacities"]
+            for name in [
+                "means",
+                "scales",
+                "quats",
+                "features_dc",
+                "features_rest",
+                "opacities",
+            ]
         }
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
@@ -410,7 +423,12 @@ class SplatfactoModel(Model):
         rgb = background.repeat(height, width, 1)
         depth = background.new_ones(*rgb.shape[:2], 1) * 10
         accumulation = background.new_zeros(*rgb.shape[:2], 1)
-        return {"rgb": rgb, "depth": depth, "accumulation": accumulation, "background": background}
+        return {
+            "rgb": rgb,
+            "depth": depth,
+            "accumulation": accumulation,
+            "background": background,
+        }
 
     def _get_background_color(self):
         if self.config.background_color == "random":
@@ -468,7 +486,9 @@ class SplatfactoModel(Model):
             crop_ids = self.crop_box.within(self.means).squeeze()
             if crop_ids.sum() == 0:
                 return self.get_empty_outputs(
-                    int(camera.width.item()), int(camera.height.item()), self.background_color
+                    int(camera.width.item()),
+                    int(camera.height.item()),
+                    self.background_color,
                 )
         else:
             crop_ids = None
@@ -513,6 +533,15 @@ class SplatfactoModel(Model):
             colors_crop = torch.sigmoid(colors_crop).squeeze(1)  # [N, 1, 3] -> [N, 3]
             sh_degree_to_use = None
 
+        if camera.camera_type == CameraType.PERSPECTIVE.value:
+            camera_model = "pinhole"
+        elif camera.camera_type == CameraType.ORTHOPHOTO.value:
+            camera_model = "ortho"
+        elif camera.camera_type == CameraType.FISHEYE.value:
+            camera_model = "fisheye"
+        else:
+            raise ValueError(f"Unknown camera type {camera.camera_type}")
+
         render, alpha, self.info = rasterization(
             means=means_crop,
             quats=quats_crop,  # rasterization does normalization internally
@@ -531,12 +560,17 @@ class SplatfactoModel(Model):
             sparse_grad=False,
             absgrad=self.strategy.absgrad,
             rasterize_mode=self.config.rasterize_mode,
+            camera_model=camera_model,
             # set some threshold to disregrad small gaussians for faster rendering.
             # radius_clip=3.0,
         )
         if self.training:
             self.strategy.step_pre_backward(
-                self.gauss_params, self.optimizers, self.strategy_state, self.step, self.info
+                self.gauss_params,
+                self.optimizers,
+                self.strategy_state,
+                self.step,
+                self.info,
             )
         alpha = alpha[:, ...]
 

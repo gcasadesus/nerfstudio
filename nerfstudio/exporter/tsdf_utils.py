@@ -175,6 +175,7 @@ class TSDF:
         K: Float[Tensor, "batch 3 3"],
         depth_images: Float[Tensor, "batch 1 height width"],
         color_images: Optional[Float[Tensor, "batch 3 height width"]] = None,
+        accum_images: Optional[Float[Tensor, "batch 1 height width"]] = None,
         mask_images: Optional[Bool[Tensor, "batch 1 height width"]] = None,
     ) -> None:
         """Integrates a batch of depth images into the TSDF.
@@ -243,6 +244,14 @@ class TSDF:
         dist = sampled_depth - voxel_depth  # [batch, 1, N]
         tsdf_values = torch.clamp(dist / self.truncation, min=-1.0, max=1.0)  # [batch, 1, N]
         valid_points = (voxel_depth > 0) & (sampled_depth > 0) & (dist > -self.truncation)  # [batch, 1, N]
+        # accum
+        sampled_accum = None
+        if accum_images is not None:
+            sampled_accum = F.grid_sample(
+                input=accum_images, grid=grid, mode="nearest", padding_mode="zeros", align_corners=False
+            )
+            sampled_accum = sampled_accum.squeeze(2)  # [batch, 1, N]
+            valid_points = valid_points & (sampled_accum > -1)
 
         # Sequentially update the TSDF...
 
@@ -269,6 +278,10 @@ class TSDF:
             if sampled_colors is not None:
                 old_colors_i = self.colors[valid_points_i_shape]  # [M, 3]
                 new_colors_i = sampled_colors[i][:, valid_points_i.squeeze(0)].permute(1, 0)  # [M, 3]
+
+                if new_colors_i.shape[1] == 2:
+                    new_colors_i = new_colors_i[..., 0:1].repeat(1, 3)
+
                 self.colors[valid_points_i_shape] = (
                     old_colors_i * old_weights_i[:, None] + new_colors_i * new_weights_i
                 ) / total_weights[:, None]
@@ -315,7 +328,7 @@ def export_tsdf_mesh(
     if not use_bounding_box:
         aabb = dataparser_outputs.scene_box.aabb
     else:
-        aabb = torch.tensor([bounding_box_min, bounding_box_max])
+        aabb = torch.tensor(np.array([bounding_box_min, bounding_box_max]))
     if isinstance(resolution, int):
         volume_dims = torch.tensor([resolution] * 3)
     elif isinstance(resolution, List):
@@ -328,7 +341,7 @@ def export_tsdf_mesh(
 
     cameras = dataparser_outputs.cameras
     # we turn off distortion when populating the TSDF
-    color_images, depth_images = render_trajectory(
+    color_images, depth_images, accum_images = render_trajectory(
         pipeline,
         cameras,
         rgb_output_name=rgb_output_name,
@@ -349,6 +362,7 @@ def export_tsdf_mesh(
     K: Float[Tensor, "N 3 3"] = cameras.get_intrinsics_matrices().to(device)
     color_images = torch.tensor(np.array(color_images), device=device).permute(0, 3, 1, 2)  # shape (N, 3, H, W)
     depth_images = torch.tensor(np.array(depth_images), device=device).permute(0, 3, 1, 2)  # shape (N, 1, H, W)
+    accum_images = torch.tensor(np.array(accum_images), device=device).permute(0, 3, 1, 2)  # shape (N, 1, H, W)
 
     CONSOLE.print("Integrating the TSDF")
     for i in range(0, len(c2w), batch_size):
@@ -357,6 +371,7 @@ def export_tsdf_mesh(
             K[i : i + batch_size],
             depth_images[i : i + batch_size],
             color_images=color_images[i : i + batch_size],
+            accum_images=accum_images[i : i + batch_size],
         )
 
     CONSOLE.print("Computing Mesh")
@@ -380,6 +395,7 @@ def export_tsdf_mesh(
                 K[i : i + batch_size],
                 depth_images[i : i + batch_size],
                 color_images=color_images[i : i + batch_size],
+                accum_images=accum_images[i : i + batch_size],
             )
 
         CONSOLE.print("Computing the updated Mesh")

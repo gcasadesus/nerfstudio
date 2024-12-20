@@ -181,8 +181,20 @@ method_configs["nerfacto-huge"] = TrainerConfig(
             num_nerf_samples_per_ray=64,
             num_proposal_samples_per_ray=(512, 512),
             proposal_net_args_list=[
-                {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 512, "use_linear": False},
-                {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 7, "max_res": 2048, "use_linear": False},
+                {
+                    "hidden_dim": 16,
+                    "log2_hashmap_size": 17,
+                    "num_levels": 5,
+                    "max_res": 512,
+                    "use_linear": False,
+                },
+                {
+                    "hidden_dim": 16,
+                    "log2_hashmap_size": 17,
+                    "num_levels": 7,
+                    "max_res": 2048,
+                    "use_linear": False,
+                },
             ],
             hidden_dim=256,
             hidden_dim_color=256,
@@ -628,7 +640,10 @@ method_configs["splatfacto"] = TrainerConfig(
             "optimizer": AdamOptimizerConfig(lr=0.005, eps=1e-15),
             "scheduler": None,
         },
-        "quats": {"optimizer": AdamOptimizerConfig(lr=0.001, eps=1e-15), "scheduler": None},
+        "quats": {
+            "optimizer": AdamOptimizerConfig(lr=0.001, eps=1e-15),
+            "scheduler": None,
+        },
         "camera_opt": {
             "optimizer": AdamOptimizerConfig(lr=1e-4, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
@@ -688,7 +703,10 @@ method_configs["splatfacto-big"] = TrainerConfig(
             "optimizer": AdamOptimizerConfig(lr=0.005, eps=1e-15),
             "scheduler": None,
         },
-        "quats": {"optimizer": AdamOptimizerConfig(lr=0.001, eps=1e-15), "scheduler": None},
+        "quats": {
+            "optimizer": AdamOptimizerConfig(lr=0.001, eps=1e-15),
+            "scheduler": None,
+        },
         "camera_opt": {
             "optimizer": AdamOptimizerConfig(lr=1e-4, eps=1e-15),
             "scheduler": ExponentialDecaySchedulerConfig(
@@ -740,7 +758,10 @@ all_methods, all_descriptions = sort_methods(all_methods, all_descriptions)
 
 # Register all possible external methods which can be installed with Nerfstudio
 all_methods, all_descriptions = merge_methods(
-    all_methods, all_descriptions, *sort_methods(*get_external_methods()), overwrite=False
+    all_methods,
+    all_descriptions,
+    *sort_methods(*get_external_methods()),
+    overwrite=False,
 )
 
 AnnotatedBaseConfigUnion = tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.

@@ -50,7 +50,7 @@ Replace `DATA_PATH` with the data directory location. You also need to add `nerf
 
 `ns-train nerfgs --data DATA_PATH --max-num-iterations 1 --pipeline.model.ply-file-path exports/nerfgs/nerfgs.ply`
 
-### Fintuned NeRFGS 
+### Fintuned NeRFGS
 We reduces the learning rate for finetuning. You also need to add `nerfstudio-data --eval-mode filename` if train on Wissahickon or Locust-Walk.
 
 `ns-train nerfgs --data DATA_PATH --pipeline.model.ply-file-path exports/nerfgs/nerfgs.ply --max-num-iterations 5000 --pipeline.model.sh-degree-interval 0 --pipeline.model.warmup-length 100 --optimizers.xyz.optimizer.lr 0.00001 --optimizers.xyz.scheduler.lr-pre-warmup 0.0000001 --optimizers.xyz.scheduler.lr-final 0.0000001 --optimizers.features-dc.optimizer.lr 0.01 --optimizers.features-rest.optimizer.lr 0.001 --optimizers.opacity.optimizer.lr 0.05 --optimizers.scaling.optimizer.lr 0.01 --optimizers.rotation.optimizer.lr 0.0000000001 --optimizers.camera-opt.optimizer.lr 0.0000000001 --optimizers.camera-opt.scheduler.lr-pre-warmup 0.0000000001 --optimizers.camera-opt.scheduler.lr-final 0.0000000001`
@@ -77,10 +77,10 @@ The conversion from NeRF to GS has inefficiency as mentioned at the discussion s
 </p>
 
 ### NeRF-SH
-The NeRF-SH field structure is shown above in the overview figure. NeRF-SH is modified from Nerfacto to predict spherical harmonics (degree 3 by default) for each rgb channel. The volumetric rendering process remains unchanges: at each point along a ray, we predict the spherical harmonics and calculate color based on the view direction. 
+The NeRF-SH field structure is shown above in the overview figure. NeRF-SH is modified from Nerfacto to predict spherical harmonics (degree 3 by default) for each rgb channel. The volumetric rendering process remains unchanges: at each point along a ray, we predict the spherical harmonics and calculate color based on the view direction.
 
 ### NeRFGS
-Given a trained NeRF-SH, we extract pointcloud based on rendered depth, following the pointcloud export pipeline in Nerfstudio. In addition to exporting the location of each point, we export spherical harmonic coefficients and density predicted by NeRF-SH. We exclude rays with low opacity or corresponding to the sky. We initialize each Gaussian as isotropic where the scale depends on the sparsity of points in the neighborhood. Specifically, the scale of each Gaussian is half of the average distance between each point and its three nearest neighbors. To avoid large Gaussians, the scale is clipped between 0 and 0.8-th quantile of the scales in the scene. The exported Gaussian splats already captures the geometric and photometric properties of the scene. To obtain fine-grained splats and remove outliers during exportation, we finetune the splats using training views.  
+Given a trained NeRF-SH, we extract pointcloud based on rendered depth, following the pointcloud export pipeline in Nerfstudio. In addition to exporting the location of each point, we export spherical harmonic coefficients and density predicted by NeRF-SH. We exclude rays with low opacity or corresponding to the sky. We initialize each Gaussian as isotropic where the scale depends on the sparsity of points in the neighborhood. Specifically, the scale of each Gaussian is half of the average distance between each point and its three nearest neighbors. To avoid large Gaussians, the scale is clipped between 0 and 0.8-th quantile of the scales in the scene. The exported Gaussian splats already captures the geometric and photometric properties of the scene. To obtain fine-grained splats and remove outliers during exportation, we finetune the splats using training views.
 
 ### GSNeRF
-After editing the Gaussian splats, rendered training views from edited Gaussian splats can be used to create a new dataset. The new dataset can be used to train/update other models (especially implicit representations that are difficult to edited directly). 
+After editing the Gaussian splats, rendered training views from edited Gaussian splats can be used to create a new dataset. The new dataset can be used to train/update other models (especially implicit representations that are difficult to edited directly).

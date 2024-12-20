@@ -234,7 +234,10 @@ class Viewer:
                 element.install(self.viser_server)
                 # also rewire the hook to rerender
                 prev_cb = element.cb_hook
-                element.cb_hook = lambda element: [prev_cb_wrapper(prev_cb)(element), self._trigger_rerender()]
+                element.cb_hook = lambda element: [
+                    prev_cb_wrapper(prev_cb)(element),
+                    self._trigger_rerender(),
+                ]
             else:
                 # recursively create folders
                 # If the folder name is "Custom Elements/a/b", then:
@@ -326,13 +329,19 @@ class Viewer:
                 aspect=self.render_tab_state.preview_aspect,
                 c2w=c2w,
                 time=self.render_tab_state.preview_time,
-                camera_type=CameraType.PERSPECTIVE
-                if camera_type == "Perspective"
-                else CameraType.FISHEYE
-                if camera_type == "Fisheye"
-                else CameraType.EQUIRECTANGULAR
-                if camera_type == "Equirectangular"
-                else assert_never(camera_type),
+                camera_type=(
+                    CameraType.PERSPECTIVE
+                    if camera_type == "Perspective"
+                    else (
+                        CameraType.FISHEYE
+                        if camera_type == "Fisheye"
+                        else (
+                            CameraType.EQUIRECTANGULAR
+                            if camera_type == "Equirectangular"
+                            else assert_never(camera_type)
+                        )
+                    )
+                ),
                 idx=self.current_camera_idx,
             )
         else:
@@ -459,6 +468,17 @@ class Viewer:
             image_uint8 = torchvision.transforms.functional.resize(image_uint8, 100, antialias=None)  # type: ignore
             image_uint8 = image_uint8.permute(1, 2, 0)
             image_uint8 = image_uint8.cpu().numpy()
+
+            if image_uint8.shape[-1] == 2:  # If 2 channels (grayscale + alpha)
+                from PIL import Image
+
+                pil_image = Image.fromarray(image_uint8, mode="LA")
+                pil_image = pil_image.convert("L")  # Discard alpha
+                image_uint8 = np.array(pil_image)
+
+            if image_uint8.shape[-1] == 1:
+                image_uint8 = np.repeat(image_uint8, 3, axis=-1)
+
             c2w = camera.camera_to_worlds.cpu().numpy()
             R = vtf.SO3.from_matrix(c2w[:3, :3])
             R = R @ vtf.SO3.from_x_radians(np.pi)
@@ -473,7 +493,9 @@ class Viewer:
             )
 
             def create_on_click_callback(capture_idx):
-                def on_click_callback(event: viser.SceneNodePointerEvent[viser.CameraFrustumHandle]) -> None:
+                def on_click_callback(
+                    event: viser.SceneNodePointerEvent[viser.CameraFrustumHandle],
+                ) -> None:
                     with event.client.atomic():
                         event.client.camera.position = event.target.position
                         event.client.camera.wxyz = event.target.wxyz

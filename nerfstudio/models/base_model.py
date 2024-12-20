@@ -106,7 +106,8 @@ class Model(nn.Module):
         if self.config.enable_collider:
             assert self.config.collider_params is not None
             self.collider = NearFarCollider(
-                near_plane=self.config.collider_params["near_plane"], far_plane=self.config.collider_params["far_plane"]
+                near_plane=self.config.collider_params["near_plane"],
+                far_plane=self.config.collider_params["far_plane"],
             )
 
     @abstractmethod
@@ -217,11 +218,11 @@ class Model(nn.Module):
         if accumulation_name not in outputs:
             raise NotImplementedError(f"get_rgba_image is not implemented for model {self.__class__.__name__}")
         rgb = outputs[output_name]
-        if self.renderer_rgb.background_color == "random":  # type: ignore
-            acc = outputs[accumulation_name]
-            if acc.dim() < rgb.dim():
-                acc = acc.unsqueeze(-1)
-            return torch.cat((rgb / acc.clamp(min=1e-10), acc), dim=-1)
+        # if self.config.background_color == "random":  # type: ignore
+        acc = outputs[accumulation_name]
+        if acc.dim() < rgb.dim():
+            acc = acc.unsqueeze(-1)
+        return torch.cat((rgb / acc.clamp(min=1e-10), acc), dim=-1)
         return torch.cat((rgb, torch.ones_like(rgb[..., :1])), dim=-1)
 
     @abstractmethod

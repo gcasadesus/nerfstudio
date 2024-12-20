@@ -114,7 +114,11 @@ def _start_viewer(config: TrainerConfig, pipeline: Pipeline, step: int):
 
     # We don't need logging, but writer.GLOBAL_BUFFER needs to be populated
     config.logging.local_writer.enable = False
-    writer.setup_local_writer(config.logging, max_iter=config.max_num_iterations, banner_messages=banner_messages)
+    writer.setup_local_writer(
+        config.logging,
+        max_iter=config.max_num_iterations,
+        banner_messages=banner_messages,
+    )
 
     assert viewer_state and pipeline.datamanager.train_dataset
     viewer_state.init_scene(
@@ -138,5 +142,10 @@ def entrypoint():
 if __name__ == "__main__":
     entrypoint()
 
+
 # For sphinx docs
-get_parser_fn = lambda: tyro.extras.get_parser(tyro.conf.FlagConversionOff[RunViewer])  # noqa
+def get_parser_fn():
+    return tyro.extras.get_parser(tyro.conf.FlagConversionOff[RunViewer])
+
+
+# get_parser_fn = lambda: tyro.extras.get_parser(tyro.conf.FlagConversionOff[RunViewer])  # noqa

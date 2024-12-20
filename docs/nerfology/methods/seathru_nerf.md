@@ -61,7 +61,7 @@ Those two contributions can be calculated as follows:
 $$\boldsymbol{\hat{C}}^{\rm obj}_i(\mathbf{r}) =
   T^{\rm obj}_i \cdot \exp (-\boldsymbol{\sigma}^{\rm attn} t_i)
   \cdot \big(1-\exp({-\sigma^{\rm obj}_i\delta_i})\big) \cdot \mathbf{c}^{\rm obj}_i \,,$$
-$$\boldsymbol{\hat{C}}^{\rm med}_i(\mathbf{r}) = 
+$$\boldsymbol{\hat{C}}^{\rm med}_i(\mathbf{r}) =
   T^{\rm obj}_i \cdot \exp ( -\boldsymbol{\sigma}^{\rm bs} t_i )
   \cdot \big( 1 - \exp ( -\boldsymbol{\sigma}^{\rm bs} \delta_i ) \big) \cdot \mathbf{c}^{\rm med}\,,$$
 $$\textrm{where } \ T^{\rm obj}_i = \exp\bigg(-\sum_{j=0}^{i-1}\sigma^{\rm obj}_j\delta_j\bigg) \,. $$

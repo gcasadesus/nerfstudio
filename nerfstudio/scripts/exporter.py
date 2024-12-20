@@ -58,6 +58,8 @@ class Exporter:
     """Path to the config YAML file."""
     output_dir: Path
     """Path to the output directory."""
+    downscale_factor: int = 2
+    """Downscale the images starting from the resolution used for training."""
 
 
 def validate_pipeline(normal_method: str, normal_output_name: str, pipeline: Pipeline) -> None:
@@ -162,6 +164,7 @@ class ExportPointCloud(Exporter):
             normal_output_name=self.normal_output_name if self.normal_method == "model_output" else None,
             crop_obb=crop_obb,
             std_ratio=self.std_ratio,
+            downscale_factor=self.downscale_factor,
         )
         if self.save_world_frame:
             # apply the inverse dataparser transform to the point cloud
@@ -193,8 +196,6 @@ class ExportTSDFMesh(Exporter):
     Export a mesh using TSDF processing.
     """
 
-    downscale_factor: int = 2
-    """Downscale the images starting from the resolution used for training."""
     depth_output_name: str = "depth"
     """Name of the depth output."""
     rgb_output_name: str = "rgb"
@@ -225,13 +226,14 @@ class ExportTSDFMesh(Exporter):
     """Refinement epsilon for the mesh. This is the distance in meters that the refined AABB/OBB will be expanded by
     in each direction."""
 
-    def main(self) -> None:
+    def main(self, pipeline: VanillaPipeline = None) -> None:
         """Export mesh"""
 
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _, _ = eval_setup(self.load_config)
+        if pipeline is None:
+            _, pipeline, _, _ = eval_setup(self.load_config)
 
         tsdf_utils.export_tsdf_mesh(
             pipeline,
@@ -331,8 +333,8 @@ class ExportPoissonMesh(Exporter):
             pipeline.datamanager,
             (VanillaDataManager, ParallelDataManager, FullImageDatamanager, RandomCamerasDataManager),
         )
-        assert pipeline.datamanager.train_pixel_sampler is not None
-        pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
+        # assert pipeline.datamanager.train_pixel_sampler is not None
+        # pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
         # Whether the normals should be estimated based on the point cloud.
         estimate_normals = self.normal_method == "open3d"

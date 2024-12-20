@@ -12,9 +12,9 @@ Nerfstudio requires `python >= 3.8`. We recommend using conda to manage dependen
 
 :::{admonition} Note
 :class: info
-Nerfstudio on Windows is less tested and more fragile, due to way more moving parts outside of Nerfstudio's control.  
-The instructions also tend to break over time as updates to different Windows packages happen.  
-Installing Nerfstudio on Linux instead is recommended if you have the option.  
+Nerfstudio on Windows is less tested and more fragile, due to way more moving parts outside of Nerfstudio's control.
+The instructions also tend to break over time as updates to different Windows packages happen.
+Installing Nerfstudio on Linux instead is recommended if you have the option.
 Alternatively, installing Nerfstudio under WSL2 (temporary unofficial guide [here](https://gist.github.com/SharkWipf/0a3fc1be3ea88b0c9640db6ce15b44b9), not guaranteed to work) is also an option, but this comes with its own set of caveats.
 :::
 
@@ -184,7 +184,7 @@ TLDR for linux:
 curl -fsSL https://pixi.sh/install.sh | bash
 ```
 
-### Install Pixi Environmnent 
+### Install Pixi Environmnent
 After Pixi is installed, you can run
 ```bash
 git clone https://github.com/nerfstudio-project/nerfstudio.git
@@ -192,7 +192,7 @@ cd nerfstudio
 pixi run post-install
 pixi shell
 ```
-This will fetch the latest Nerfstudio code, install all enviroment dependencies including colmap, tinycudann and hloc, and then activate the pixi environment (similar to conda).  
+This will fetch the latest Nerfstudio code, install all enviroment dependencies including colmap, tinycudann and hloc, and then activate the pixi environment (similar to conda).
 From now on, each time you want to run Nerfstudio in a new shell, you have to navigate to the nerfstudio folder and run `pixi shell` again.
 
 You could also run
@@ -435,6 +435,6 @@ export PATH=$PATH:$CUDA_HOME/bin
 
 **Other errors**
 
-(Windows) A lot of errors on Windows can be caused by not having the Visual Studio environment loaded.  
-If you run into errors you can't figure out, please try re-activating the Visual Studio environment (as outlined at the top of the Windows instructions on this page) and try again.  
+(Windows) A lot of errors on Windows can be caused by not having the Visual Studio environment loaded.
+If you run into errors you can't figure out, please try re-activating the Visual Studio environment (as outlined at the top of the Windows instructions on this page) and try again.
 This activation only lasts within your current terminal session and does not extend to other terminals, but this should only be needed on first run and on updates.

@@ -261,7 +261,11 @@ class Nerfstudio(DataParser):
         aabb_scale = self.config.scene_scale
         scene_box = SceneBox(
             aabb=torch.tensor(
-                [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
+                [
+                    [-aabb_scale, -aabb_scale, -aabb_scale],
+                    [aabb_scale, aabb_scale, aabb_scale],
+                ],
+                dtype=torch.float32,
             )
         )
 
@@ -330,7 +334,11 @@ class Nerfstudio(DataParser):
 
         if applied_transform is not None:
             dataparser_transform_matrix = transform_matrix @ torch.cat(
-                [applied_transform, torch.tensor([[0, 0, 0, 1]], dtype=transform_matrix.dtype)], 0
+                [
+                    applied_transform,
+                    torch.tensor([[0, 0, 0, 1]], dtype=transform_matrix.dtype),
+                ],
+                0,
             )
         else:
             dataparser_transform_matrix = transform_matrix
@@ -411,7 +419,7 @@ class Nerfstudio(DataParser):
             dataparser_scale=scale_factor,
             dataparser_transform=dataparser_transform_matrix,
             metadata={
-                "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
+                "depth_filenames": (depth_filenames if len(depth_filenames) > 0 else None),
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
                 "mask_color": self.config.mask_color,
                 **metadata,

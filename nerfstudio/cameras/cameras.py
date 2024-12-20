@@ -171,7 +171,7 @@ class Cameras(TensorDataclass):
             name: The name of the variable. Used for error messages
         """
         if isinstance(fc_xy, float):
-            fc_xy = torch.tensor([fc_xy], device=self.device)
+            fc_xy = torch.tensor([fc_xy], device=self.device, dtype=torch.float32)
         elif isinstance(fc_xy, torch.Tensor):
             if fc_xy.ndim == 0 or fc_xy.shape[-1] != 1:
                 fc_xy = fc_xy.unsqueeze(-1)
@@ -183,7 +183,11 @@ class Cameras(TensorDataclass):
     def _init_get_camera_type(
         self,
         camera_type: Union[
-            Int[Tensor, "*batch_cam_types 1"], Int[Tensor, "*batch_cam_types"], int, List[CameraType], CameraType
+            Int[Tensor, "*batch_cam_types 1"],
+            Int[Tensor, "*batch_cam_types"],
+            int,
+            List[CameraType],
+            CameraType,
         ],
     ) -> Int[Tensor, "*num_cameras 1"]:
         """
@@ -465,7 +469,11 @@ class Cameras(TensorDataclass):
         # raybundle.shape == (num_rays) when done
 
         raybundle = cameras._generate_rays_from_coords(
-            camera_indices, coords, camera_opt_to_camera, distortion_params_delta, disable_distortion=disable_distortion
+            camera_indices,
+            coords,
+            camera_opt_to_camera,
+            distortion_params_delta,
+            disable_distortion=disable_distortion,
         )
 
         # If we have mandated that we don't keep the shape, then we flatten
@@ -491,8 +499,10 @@ class Cameras(TensorDataclass):
                 else:
                     assert False
 
-                t_min = t_min.reshape([shape[0], shape[1], 1])
-                t_max = t_max.reshape([shape[0], shape[1], 1])
+                # t_min = t_min.reshape([shape[0], shape[1], 1])
+                # t_max = t_max.reshape([shape[0], shape[1], 1])
+                t_min = t_min.reshape([shape[0], 1])
+                t_max = t_max.reshape([shape[0], 1])
 
                 raybundle.nears = t_min
                 raybundle.fars = t_max
@@ -842,12 +852,21 @@ class Cameras(TensorDataclass):
                 dir_mask = torch.stack([mask, mask, mask], dim=0)
                 # in orthophoto cam, all rays have same direction, dir = R @ [0, 0, 1], R will be applied following.
                 directions_stack[dir_mask] = torch.tensor(
-                    [0.0, 0.0, -1.0], dtype=directions_stack.dtype, device=directions_stack.device
+                    [0.0, 0.0, -1.0],
+                    dtype=directions_stack.dtype,
+                    device=directions_stack.device,
                 )
                 # in orthophoto cam, ray origins are grids, then transform grids with c2w, c2w @ P.
                 grids = coord[mask]
                 grids[..., 1] *= -1.0  # convert to left-hand system.
-                grids = torch.cat([grids, torch.zeros_like(grids[..., -1:]), torch.ones_like(grids[..., -1:])], dim=-1)
+                grids = torch.cat(
+                    [
+                        grids,
+                        torch.zeros_like(grids[..., -1:]),
+                        torch.ones_like(grids[..., -1:]),
+                    ],
+                    dim=-1,
+                )
                 grids = torch.matmul(c2w[mask], grids[..., None]).squeeze(-1)
                 c2w[..., :3, 3][mask] = grids
 
@@ -929,7 +948,10 @@ class Cameras(TensorDataclass):
         )
 
     def to_json(
-        self, camera_idx: int, image: Optional[Float[Tensor, "height width 2"]] = None, max_size: Optional[int] = None
+        self,
+        camera_idx: int,
+        image: Optional[Float[Tensor, "height width 2"]] = None,
+        max_size: Optional[int] = None,
     ) -> Dict:
         """Convert a camera to a json dictionary.
 
@@ -999,7 +1021,10 @@ class Cameras(TensorDataclass):
             scaling_factor = torch.tensor([scaling_factor]).to(self.device).broadcast_to((self.cx.shape))
         elif isinstance(scaling_factor, torch.Tensor) and scaling_factor.shape == self.shape:
             scaling_factor = scaling_factor.unsqueeze(-1)
-        elif isinstance(scaling_factor, torch.Tensor) and scaling_factor.shape == (*self.shape, 1):
+        elif isinstance(scaling_factor, torch.Tensor) and scaling_factor.shape == (
+            *self.shape,
+            1,
+        ):
             pass
         else:
             raise ValueError(

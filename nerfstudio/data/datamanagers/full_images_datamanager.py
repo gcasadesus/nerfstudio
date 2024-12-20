@@ -70,11 +70,11 @@ class FullImageDatamanagerConfig(DataManagerConfig):
     max_thread_workers: Optional[int] = None
     """The maximum number of threads to use for caching images. If None, uses all available threads."""
     train_cameras_sampling_strategy: Literal["random", "fps"] = "random"
-    """Specifies which sampling strategy is used to generate train cameras, 'random' means sampling 
-    uniformly random without replacement, 'fps' means farthest point sampling which is helpful to reduce the artifacts 
+    """Specifies which sampling strategy is used to generate train cameras, 'random' means sampling
+    uniformly random without replacement, 'fps' means farthest point sampling which is helpful to reduce the artifacts
     due to oversampling subsets of cameras that are very close to each other."""
     train_cameras_sampling_seed: int = 42
-    """Random seed for sampling train cameras. Fixing seed may help reduce variance of trained models across 
+    """Random seed for sampling train cameras. Fixing seed may help reduce variance of trained models across
     different runs."""
     fps_reset_every: int = 100
     """The number of iterations before one resets fps sampler repeatly, which is essentially drawing fps_reset_every
@@ -121,7 +121,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         self.train_dataparser_outputs: DataparserOutputs = self.dataparser.get_dataparser_outputs(split="train")
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
-        if len(self.train_dataset) > 500 and self.config.cache_images == "gpu":
+        if len(self.train_dataset) > 500 * 500 and self.config.cache_images == "gpu":
             CONSOLE.print(
                 "Train dataset has over 500 images, overriding cache_images to cpu",
                 style="bold yellow",
@@ -159,7 +159,11 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             # increase the chance to sample camera that hasn't been sampled in consecutive epochs previously.
             # We assume the camera origins are also rescaled, so the weight 0.1 is relative to the scale of scene
             data = np.concatenate(
-                (camera_origins, 0.1 * np.expand_dims(self.train_unsampled_epoch_count, axis=-1)), axis=-1
+                (
+                    camera_origins,
+                    0.1 * np.expand_dims(self.train_unsampled_epoch_count, axis=-1),
+                ),
+                axis=-1,
             )
             n = self.config.fps_reset_every
             if num_train_cameras < n:
@@ -189,7 +193,9 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
         return self._load_images("eval", cache_images_device=self.config.cache_images)
 
     def _load_images(
-        self, split: Literal["train", "eval"], cache_images_device: Literal["cpu", "gpu"]
+        self,
+        split: Literal["train", "eval"],
+        cache_images_device: Literal["cpu", "gpu"],
     ) -> List[Dict[str, torch.Tensor]]:
         undistorted_images: List[Dict[str, torch.Tensor]] = []
 
@@ -206,7 +212,7 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
             camera = dataset.cameras[idx].reshape(())
             assert data["image"].shape[1] == camera.width.item() and data["image"].shape[0] == camera.height.item(), (
                 f'The size of image ({data["image"].shape[1]}, {data["image"].shape[0]}) loaded '
-                f'does not match the camera parameters ({camera.width.item(), camera.height.item()})'
+                f"does not match the camera parameters ({camera.width.item(), camera.height.item()})"
             )
             if camera.distortion_params is None or torch.all(camera.distortion_params == 0):
                 return data
@@ -387,7 +393,11 @@ class FullImageDatamanager(DataManager, Generic[TDataset]):
 
 
 def _undistort_image(
-    camera: Cameras, distortion_params: np.ndarray, data: dict, image: np.ndarray, K: np.ndarray
+    camera: Cameras,
+    distortion_params: np.ndarray,
+    data: dict,
+    image: np.ndarray,
+    K: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray, Optional[torch.Tensor]]:
     mask = None
     if camera.camera_type.item() == CameraType.PERSPECTIVE.value:
@@ -444,13 +454,23 @@ def _undistort_image(
         K[0, 2] = K[0, 2] - 0.5
         K[1, 2] = K[1, 2] - 0.5
         distortion_params = np.array(
-            [distortion_params[0], distortion_params[1], distortion_params[2], distortion_params[3]]
+            [
+                distortion_params[0],
+                distortion_params[1],
+                distortion_params[2],
+                distortion_params[3],
+            ]
         )
         newK = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(
             K, distortion_params, (image.shape[1], image.shape[0]), np.eye(3), balance=0
         )
         map1, map2 = cv2.fisheye.initUndistortRectifyMap(
-            K, distortion_params, np.eye(3), newK, (image.shape[1], image.shape[0]), cv2.CV_32FC1
+            K,
+            distortion_params,
+            np.eye(3),
+            newK,
+            (image.shape[1], image.shape[0]),
+            cv2.CV_32FC1,
         )
         # and then remap:
         image = cv2.remap(image, map1, map2, interpolation=cv2.INTER_LINEAR)
@@ -466,7 +486,14 @@ def _undistort_image(
         K = newK
     elif camera.camera_type.item() == CameraType.FISHEYE624.value:
         fisheye624_params = torch.cat(
-            [camera.fx, camera.fy, camera.cx, camera.cy, torch.from_numpy(distortion_params)], dim=0
+            [
+                camera.fx,
+                camera.fy,
+                camera.cx,
+                camera.cy,
+                torch.from_numpy(distortion_params),
+            ],
+            dim=0,
         )
         assert fisheye624_params.shape == (16,)
         assert (

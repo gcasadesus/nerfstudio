@@ -74,18 +74,39 @@ class ControlPanel:
             "Output type",
             "not set",
             ["not set"],
-            cb_hook=lambda han: [self.update_control_panel(), update_output_cb(han), rerender_cb()],
+            cb_hook=lambda han: [
+                self.update_control_panel(),
+                update_output_cb(han),
+                rerender_cb(),
+            ],
             hint="The output to render",
         )
         self._colormap = ViewerDropdown[Colormaps](
-            "Colormap", "default", ["default"], cb_hook=lambda _: rerender_cb(), hint="The colormap to use"
+            "Colormap",
+            "default",
+            ["default"],
+            cb_hook=lambda _: rerender_cb(),
+            hint="The colormap to use",
         )
         self._invert = ViewerCheckbox("Invert", False, cb_hook=lambda _: rerender_cb(), hint="Invert the colormap")
         self._normalize = ViewerCheckbox(
-            "Normalize", True, cb_hook=lambda _: rerender_cb(), hint="Normalize the colormap"
+            "Normalize",
+            True,
+            cb_hook=lambda _: rerender_cb(),
+            hint="Normalize the colormap",
         )
-        self._min = ViewerNumber("Min", 0.0, cb_hook=lambda _: rerender_cb(), hint="Min value of the colormap")
-        self._max = ViewerNumber("Max", 1.0, cb_hook=lambda _: rerender_cb(), hint="Max value of the colormap")
+        self._min = ViewerNumber(
+            "Min",
+            0.0,
+            cb_hook=lambda _: rerender_cb(),
+            hint="Min value of the colormap",
+        )
+        self._max = ViewerNumber(
+            "Max",
+            1.0,
+            cb_hook=lambda _: rerender_cb(),
+            hint="Max value of the colormap",
+        )
 
         self._split = ViewerCheckbox(
             "Enable",
@@ -94,30 +115,56 @@ class ControlPanel:
             hint="Render two outputs",
         )
         self._split_percentage = ViewerSlider(
-            "Split percentage", 0.5, 0.0, 1.0, 0.01, cb_hook=lambda _: rerender_cb(), hint="Where to split"
+            "Split percentage",
+            0.5,
+            0.0,
+            1.0,
+            0.01,
+            cb_hook=lambda _: rerender_cb(),
+            hint="Where to split",
         )
         self._split_output_render = ViewerDropdown(
             "Output render split",
             "not set",
             ["not set"],
-            cb_hook=lambda han: [self.update_control_panel(), update_split_output_cb(han), rerender_cb()],
+            cb_hook=lambda han: [
+                self.update_control_panel(),
+                update_split_output_cb(han),
+                rerender_cb(),
+            ],
             hint="The second output",
         )
         # Hack: spaces are after at the end of the names to make them unique
         self._split_colormap = ViewerDropdown[Colormaps](
-            "Colormap ", "default", ["default"], cb_hook=lambda _: rerender_cb(), hint="Colormap of the second output"
+            "Colormap ",
+            "default",
+            ["default"],
+            cb_hook=lambda _: rerender_cb(),
+            hint="Colormap of the second output",
         )
         self._split_invert = ViewerCheckbox(
-            "Invert ", False, cb_hook=lambda _: rerender_cb(), hint="Invert the colormap of the second output"
+            "Invert ",
+            False,
+            cb_hook=lambda _: rerender_cb(),
+            hint="Invert the colormap of the second output",
         )
         self._split_normalize = ViewerCheckbox(
-            "Normalize ", True, cb_hook=lambda _: rerender_cb(), hint="Normalize the colormap of the second output"
+            "Normalize ",
+            True,
+            cb_hook=lambda _: rerender_cb(),
+            hint="Normalize the colormap of the second output",
         )
         self._split_min = ViewerNumber(
-            "Min ", 0.0, cb_hook=lambda _: rerender_cb(), hint="Min value of the colormap of the second output"
+            "Min ",
+            0.0,
+            cb_hook=lambda _: rerender_cb(),
+            hint="Min value of the colormap of the second output",
         )
         self._split_max = ViewerNumber(
-            "Max ", 1.0, cb_hook=lambda _: rerender_cb(), hint="Max value of the colormap of the second output"
+            "Max ",
+            1.0,
+            cb_hook=lambda _: rerender_cb(),
+            hint="Max value of the colormap of the second output",
         )
 
         self._train_util = ViewerSlider(
@@ -150,7 +197,10 @@ class ControlPanel:
             hint="Crop the scene to a specified box",
         )
         self._background_color = ViewerRGB(
-            "Background color", (38, 42, 55), cb_hook=lambda _: rerender_cb(), hint="Color of the background"
+            "Background color",
+            (38, 42, 55),
+            cb_hook=lambda _: rerender_cb(),
+            hint="Color of the background",
         )
         self._crop_handle = self.server.scene.add_transform_controls("Crop", depth_test=False, line_width=4.0)
 
@@ -177,7 +227,11 @@ class ControlPanel:
         )
 
         self._crop_scale = ViewerVec3(
-            "Crop scale", (1.0, 1.0, 1.0), step=0.01, cb_hook=lambda _: rerender_cb(), hint="Size of the crop box."
+            "Crop scale",
+            (1.0, 1.0, 1.0),
+            step=0.01,
+            cb_hook=lambda _: rerender_cb(),
+            hint="Size of the crop box.",
         )
 
         @self._crop_handle.on_update
@@ -187,7 +241,15 @@ class ControlPanel:
             rpy = vtf.SO3(self._crop_handle.wxyz).as_rpy_radians()
             self._crop_rot.value = (float(rpy.roll), float(rpy.pitch), float(rpy.yaw))
 
-        self._time = ViewerSlider("Time", 0.0, 0.0, 1.0, 0.01, cb_hook=lambda _: rerender_cb(), hint="Time to render")
+        self._time = ViewerSlider(
+            "Time",
+            0.0,
+            0.0,
+            1.0,
+            0.01,
+            cb_hook=lambda _: rerender_cb(),
+            hint="Time to render",
+        )
         self._time_enabled = time_enabled
 
         self.add_element(self._train_speed)
@@ -354,7 +416,11 @@ class ControlPanel:
         """Returns the current crop obb setting"""
         rxyz = self._crop_rot.value
         R = torch.tensor(vtf.SO3.from_rpy_radians(rxyz[0], rxyz[1], rxyz[2]).as_matrix())
-        obb = OrientedBox(R, torch.tensor(self._crop_center.value), torch.tensor(self._crop_scale.value))
+        obb = OrientedBox(
+            R,
+            torch.tensor(self._crop_center.value),
+            torch.tensor(self._crop_scale.value),
+        )
         return obb
 
     @property
@@ -418,7 +484,12 @@ def _get_colormap_options(dimensions: int, dtype: type) -> List[Colormaps]:
     colormap_options: List[Colormaps] = []
     if dimensions == 3:
         colormap_options = ["default"]
-    if dimensions == 1 and dtype in [torch.float64, torch.float32, torch.float16, torch.bfloat16]:
+    if dimensions == 1 and dtype in [
+        torch.float64,
+        torch.float32,
+        torch.float16,
+        torch.bfloat16,
+    ]:
         colormap_options = [c for c in list(get_args(Colormaps)) if c not in ("default", "pca")]
     if dimensions > 3:
         colormap_options = ["pca"]

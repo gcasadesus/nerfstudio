@@ -155,7 +155,10 @@ class RenderStateMachine(threading.Thread):
                     if self.viewer.control_panel.crop_viewport:
                         color = self.viewer.control_panel.background_color
                         if color is None:
-                            background_color = torch.tensor([0.0, 0.0, 0.0], device=self.viewer.pipeline.model.device)
+                            background_color = torch.tensor(
+                                [0.0, 0.0, 0.0],
+                                device=self.viewer.pipeline.model.device,
+                            )
                         else:
                             background_color = torch.tensor(
                                 [color[0] / 255.0, color[1] / 255.0, color[2] / 255.0],
@@ -180,7 +183,11 @@ class RenderStateMachine(threading.Thread):
                     assert len(outputs["depth"].shape) == 3
                     assert outputs["depth"].shape[-1] == 1
 
-                    desired_depth_pixels = {"low_move": 128, "low_static": 128, "high": 512}[self.state] ** 2
+                    desired_depth_pixels = {
+                        "low_move": 128,
+                        "low_static": 128,
+                        "high": 512,
+                    }[self.state] ** 2
                     current_depth_pixels = outputs["depth"].shape[0] * outputs["depth"].shape[1]
 
                     # from the panel of ns-viewer, it is possible for user to enter zero resolution
@@ -188,7 +195,10 @@ class RenderStateMachine(threading.Thread):
 
                     outputs["gl_z_buf_depth"] = F.interpolate(
                         outputs["depth"].squeeze(dim=-1)[None, None, ...],
-                        size=(int(outputs["depth"].shape[0] * scale), int(outputs["depth"].shape[1] * scale)),
+                        size=(
+                            int(outputs["depth"].shape[0] * scale),
+                            int(outputs["depth"].shape[1] * scale),
+                        ),
                         mode="bilinear",
                     )[0, 0, :, :, None]
                 else:
@@ -201,8 +211,15 @@ class RenderStateMachine(threading.Thread):
         render_time = vis_t.duration
         if writer.is_initialized() and render_time != 0:
             writer.put_time(
-                name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=step, avg_over_steps=True
+                name=EventName.VIS_RAYS_PER_SEC,
+                duration=num_rays / render_time,
+                step=step,
+                avg_over_steps=True,
             )
+
+        assert len(outputs["rgb"].shape) == 3
+        if outputs["rgb"].shape[-1] == 1:
+            outputs["rgb"] = torch.tile(outputs["rgb"], (1, 1, 3))
         return outputs
 
     def run(self):
@@ -213,7 +230,12 @@ class RenderStateMachine(threading.Thread):
                 continue
             if not self.render_trigger.wait(0.2):
                 # if we haven't received a trigger in a while, send a static action
-                self.action(RenderAction(action="static", camera_state=self.viewer.get_camera_state(self.client)))
+                self.action(
+                    RenderAction(
+                        action="static",
+                        camera_state=self.viewer.get_camera_state(self.client),
+                    )
+                )
             action = self.next_action
             self.render_trigger.clear()
             if action is None:
@@ -253,7 +275,8 @@ class RenderStateMachine(threading.Thread):
 
         output_render = self.viewer.control_panel.output_render
         self.viewer.update_colormap_options(
-            dimensions=outputs[output_render].shape[-1], dtype=outputs[output_render].dtype
+            dimensions=outputs[output_render].shape[-1],
+            dtype=outputs[output_render].dtype,
         )
         selected_output = colormaps.apply_colormap(
             image=outputs[self.viewer.control_panel.output_render],
@@ -263,7 +286,8 @@ class RenderStateMachine(threading.Thread):
         if self.viewer.control_panel.split:
             split_output_render = self.viewer.control_panel.split_output_render
             self.viewer.update_split_colormap_options(
-                dimensions=outputs[split_output_render].shape[-1], dtype=outputs[split_output_render].dtype
+                dimensions=outputs[split_output_render].shape[-1],
+                dtype=outputs[split_output_render].dtype,
             )
             split_output = colormaps.apply_colormap(
                 image=outputs[self.viewer.control_panel.split_output_render],
